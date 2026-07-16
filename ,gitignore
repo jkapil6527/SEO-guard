@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+.next/
+.turbo/
+out/
+coverage/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# runtime artifacts
+*.log
+.embedded-postgres/
+.minio-data/
+
+# editor/os
+.idea/
+.vscode/
+.DS_Store
