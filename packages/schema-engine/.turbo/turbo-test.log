@@ -1,0 +1,11 @@
+$ jest
+PASS src/extract.spec.ts (8.629 s)
+PASS src/rich-results.spec.ts (8.739 s)
+PASS src/validate.spec.ts (8.667 s)
+PASS src/engine.spec.ts (10.351 s)
+
+Test Suites: 4 passed, 4 total
+Tests:       30 passed, 30 total
+Snapshots:   0 total
+Time:        13.265 s, estimated 15 s
+Ran all test suites.

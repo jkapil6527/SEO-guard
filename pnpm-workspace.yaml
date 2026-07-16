@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  '@embedded-postgres/linux-x64': true
+  '@scarf/scarf': false
+  argon2: true
+  msgpackr-extract: true
+  sharp: true

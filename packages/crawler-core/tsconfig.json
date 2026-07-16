@@ -1,0 +1,10 @@
+{
+  "extends": "@seo-guardian/config/tsconfig.lib.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node", "jest"]
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.spec.ts", "src/test-support/**"]
+}

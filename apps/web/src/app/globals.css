@@ -1,0 +1,146 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/**
+ * Semantic token layer.
+ *
+ * Colours are declared once, as CSS variables, and swapped wholesale for dark
+ * mode. Components reference the semantic name (bg-surface, text-muted,
+ * text-critical) and never a raw palette step — so dark mode is one variable
+ * swap rather than a `dark:` twin on every single declaration, and a re-brand
+ * is an edit to this file rather than a find-and-replace across the app.
+ *
+ * Charts read these same variables via getComputedStyle, which is what lets
+ * them follow the theme instead of being frozen to hardcoded hex.
+ */
+:root {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-hover: #f1f5f9;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-fg: #ffffff;
+  --primary-soft: #eff6ff;
+
+  --success: #059669;
+  --success-soft: #ecfdf5;
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-soft: #fef2f2;
+
+  /* Severity — one source of truth, shared by badges, charts and text. */
+  --critical: #dc2626;
+  --high: #ea580c;
+  --medium: #d97706;
+  --low: #0891b2;
+  --info: #64748b;
+}
+
+.dark {
+  --bg: #0b1120;
+  --surface: #0f172a;
+  --surface-2: #0d1526;
+  --surface-hover: #1e293b;
+  --border: #1e293b;
+  --border-strong: #334155;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-faint: #64748b;
+
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --primary-fg: #0b1120;
+  --primary-soft: #172554;
+
+  --success: #10b981;
+  --success-soft: #052e26;
+  --warning: #f59e0b;
+  --warning-soft: #2c1f06;
+  --danger: #ef4444;
+  --danger-hover: #f87171;
+  --danger-soft: #2b0f0f;
+
+  --critical: #ef4444;
+  --high: #fb923c;
+  --medium: #fbbf24;
+  --low: #22d3ee;
+  --info: #94a3b8;
+}
+
+/* Expose the tokens to Tailwind so `bg-surface`, `text-muted`, `border-border`
+   and `text-critical` are real utilities. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-soft: var(--primary-soft);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-soft: var(--danger-soft);
+
+  --color-critical: var(--critical);
+  --color-high: var(--high);
+  --color-medium: var(--medium);
+  --color-low: var(--low);
+  --color-info: var(--info);
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /* Digits that sit in columns must line up. */
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

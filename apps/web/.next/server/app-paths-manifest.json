@@ -1,0 +1,9 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/(dash)/page": "app/(dash)/page.js",
+  "/(dash)/projects/[slug]/categories/[groupId]/page": "app/(dash)/projects/[slug]/categories/[groupId]/page.js",
+  "/(dash)/crawls/[crawlId]/page": "app/(dash)/crawls/[crawlId]/page.js",
+  "/(dash)/crawls/[crawlId]/issues/page": "app/(dash)/crawls/[crawlId]/issues/page.js",
+  "/(dash)/projects/[slug]/page": "app/(dash)/projects/[slug]/page.js",
+  "/(dash)/crawls/[crawlId]/pages/[pageId]/page": "app/(dash)/crawls/[crawlId]/pages/[pageId]/page.js"
+}

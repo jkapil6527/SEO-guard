@@ -1,0 +1,15 @@
+$ jest
+PASS src/roles.spec.ts
+  roleSatisfies
+    ✓ grants equal role (12 ms)
+    ✓ grants higher role (5 ms)
+    ✓ denies lower role (4 ms)
+  schedule presets
+    ✓ recognizes valid presets (5 ms)
+    ✓ maps presets to five-field cron expressions (6 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       5 passed, 5 total
+Snapshots:   0 total
+Time:        5.626 s, estimated 6 s
+Ran all test suites.

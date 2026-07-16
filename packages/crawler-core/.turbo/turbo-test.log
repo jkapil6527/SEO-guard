@@ -1,0 +1,12 @@
+$ jest
+PASS src/url-filter.spec.ts (6.764 s)
+PASS src/url.spec.ts (7.527 s)
+PASS src/robots.spec.ts (8.534 s)
+PASS src/sitemap.spec.ts (10.17 s)
+PASS src/safe-fetcher.spec.ts (10.425 s)
+
+Test Suites: 5 passed, 5 total
+Tests:       150 passed, 150 total
+Snapshots:   0 total
+Time:        13.923 s, estimated 14 s
+Ran all test suites.

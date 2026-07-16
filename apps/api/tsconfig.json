@@ -1,0 +1,9 @@
+{
+  "extends": "@seo-guardian/config/tsconfig.nest.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "baseUrl": ".",
+    "types": ["node", "jest", "multer"]
+  },
+  "include": ["src", "test"]
+}

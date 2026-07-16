@@ -1,0 +1,17 @@
+{
+  "name": "@seo-guardian/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared tsconfig presets for the monorepo",
+  "files": [
+    "tsconfig.base.json",
+    "tsconfig.lib.json",
+    "tsconfig.nest.json"
+  ],
+  "scripts": {
+    "build": "true",
+    "lint": "true",
+    "typecheck": "true",
+    "test": "true"
+  }
+}

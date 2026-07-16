@@ -1,0 +1,17 @@
+$ jest
+PASS src/checks/technical.spec.ts
+PASS src/checks/social.spec.ts
+PASS src/checks/headings.spec.ts
+PASS src/catalog.spec.ts
+PASS src/scoring.spec.ts
+PASS src/runner.spec.ts
+PASS src/checks/links.spec.ts
+PASS src/checks/images.spec.ts
+PASS src/checks/meta.spec.ts
+PASS src/extract.spec.ts
+
+Test Suites: 10 passed, 10 total
+Tests:       91 passed, 91 total
+Snapshots:   0 total
+Time:        4.91 s, estimated 5 s
+Ran all test suites.
