@@ -31,8 +31,10 @@ support `--target` (Fly, Railway). Keep both in step when dependencies change.
 
 ## 2. Provision
 
-1. **Neon Postgres** — create a project in the region closest to your Render
-   region (`singapore` in `render.yaml`). Copy **both** connection strings:
+1. **Neon Postgres** — the Neon project and the Render services must be in the
+   same region, or every query pays a cross-continent round trip and crawls
+   crawl. `render.yaml` uses `virginia` to match a Neon project on AWS
+   `us-east-1` (N. Virginia). Copy **both** connection strings:
    - pooled (host contains `-pooler`) → `DATABASE_URL`
    - direct/unpooled → `DIRECT_DATABASE_URL`
 

@@ -23,7 +23,7 @@ services:
   # ---------------------------------------------------------------------------
   - name: seo-guardian-redis
     type: keyvalue
-    region: singapore
+    region: virginia
     plan: starter
     maxmemoryPolicy: noeviction
     ipAllowList: []
@@ -38,7 +38,7 @@ services:
   - name: seo-guardian-api
     type: web
     runtime: docker
-    region: singapore
+    region: virginia
     plan: starter
     dockerfilePath: ./docker/api.Dockerfile
     dockerContext: .
@@ -90,7 +90,7 @@ services:
   - name: seo-guardian-web
     type: web
     runtime: docker
-    region: singapore
+    region: virginia
     plan: starter
     dockerfilePath: ./docker/web.Dockerfile
     dockerContext: .
@@ -113,7 +113,7 @@ services:
   - name: seo-guardian-worker
     type: worker
     runtime: docker
-    region: singapore
+    region: virginia
     plan: standard
     dockerfilePath: ./docker/worker.Dockerfile
     dockerContext: .
