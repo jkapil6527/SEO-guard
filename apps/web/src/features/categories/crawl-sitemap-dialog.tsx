@@ -45,7 +45,6 @@ export function CrawlSitemapDialog({
       preview.reset();
     }
     // preview is a stable mutation object; re-running on it would loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, group.sitemapUrl]);
 
   const runPreview = async () => {

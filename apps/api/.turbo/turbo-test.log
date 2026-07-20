@@ -1,9 +1,0 @@
-$ jest
-PASS src/modules/schedules/cron.util.spec.ts (12.964 s)
-PASS src/modules/sources/csv.service.spec.ts (13.56 s)
-
-Test Suites: 2 passed, 2 total
-Tests:       23 passed, 23 total
-Snapshots:   0 total
-Time:        16.137 s, estimated 18 s
-Ran all test suites.

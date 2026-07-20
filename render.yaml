@@ -1,0 +1,162 @@
+# SEO Guardian — Render Blueprint.
+#
+# Apply with: Render Dashboard -> Blueprints -> New Blueprint Instance ->
+# connect this repo. Render prompts for every env var marked `sync: false`.
+#
+# Postgres is deliberately NOT declared here: Render's free Postgres expires 30
+# days after creation and caps at 1GB, so this blueprint expects an external
+# Neon database supplied via DATABASE_URL / DIRECT_DATABASE_URL.
+#
+# Costs: the worker cannot run on Render's free tier (background workers are
+# paid-only) and needs ~2GB for Chromium, hence `standard`.
+
+services:
+  # ---------------------------------------------------------------------------
+  # Redis / BullMQ transport.
+  #
+  # maxmemoryPolicy MUST stay `noeviction`. BullMQ stores job state as ordinary
+  # keys; under any LRU policy Redis silently drops them and crawls hang
+  # part-way through with no error anywhere.
+  #
+  # An empty ipAllowList keeps this reachable only from inside the Render
+  # private network.
+  # ---------------------------------------------------------------------------
+  - name: seo-guardian-redis
+    type: keyvalue
+    region: singapore
+    plan: starter
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+
+  # ---------------------------------------------------------------------------
+  # REST API. Also owns the database migration, run as preDeployCommand.
+  #
+  # Migrations take advisory locks and run DDL, which PgBouncer in transaction
+  # mode breaks — so they run against Neon's DIRECT (unpooled) URL while the
+  # service itself uses the pooled one.
+  # ---------------------------------------------------------------------------
+  - name: seo-guardian-api
+    type: web
+    runtime: docker
+    region: singapore
+    plan: starter
+    dockerfilePath: ./docker/api.Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health
+    preDeployCommand: >-
+      DATABASE_URL="$DIRECT_DATABASE_URL"
+      node-pg-migrate up -m migrations --migration-filename-format utc
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PORT
+        value: 10000
+      # Neon POOLED connection string (-pooler in the host).
+      - key: DATABASE_URL
+        sync: false
+      # Neon DIRECT/unpooled connection string — migrations only.
+      - key: DIRECT_DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          name: seo-guardian-redis
+          type: keyvalue
+          property: connectionString
+      # Raw-HTML archival is optional; leaving S3_ACCESS_KEY empty disables it
+      # and page artifacts still persist in Postgres.
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        value: auto
+      - key: S3_BUCKET_UPLOADS
+        value: seo-guardian-uploads
+      - key: S3_BUCKET_HTML
+        value: seo-guardian-html
+      - key: S3_FORCE_PATH_STYLE
+        value: "true"
+
+  # ---------------------------------------------------------------------------
+  # Next.js dashboard.
+  #
+  # NEXT_PUBLIC_API_URL is NOT set here on purpose — it is compiled into the
+  # client bundle at build time and Render does not pass build args, so it lives
+  # as the ARG default in docker/web.Dockerfile. Setting it here would be
+  # silently ignored.
+  # ---------------------------------------------------------------------------
+  - name: seo-guardian-web
+    type: web
+    runtime: docker
+    region: singapore
+    plan: starter
+    dockerfilePath: ./docker/web.Dockerfile
+    dockerContext: .
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+
+  # ---------------------------------------------------------------------------
+  # BullMQ worker: crawling, rendering, finalize.
+  #
+  # Not optional infrastructure — besides running crawls it provisions the
+  # monthly table partitions two months ahead and re-drives stuck finalizes. If
+  # it stays down, writes eventually fail once the last partition is passed.
+  #
+  # RENDER_CONCURRENCY is 1 (not the local default of 2): each concurrent
+  # Chromium context is a few hundred MB and `standard` is a 2GB instance.
+  # ---------------------------------------------------------------------------
+  - name: seo-guardian-worker
+    type: worker
+    runtime: docker
+    region: singapore
+    plan: standard
+    dockerfilePath: ./docker/worker.Dockerfile
+    dockerContext: .
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          name: seo-guardian-redis
+          type: keyvalue
+          property: connectionString
+      - key: WORKER_QUEUES
+        value: "*"
+      # Identify the crawler and give site owners a contact — an anonymous
+      # high-volume crawler gets blocked fast.
+      - key: CRAWLER_USER_AGENT
+        sync: false
+      - key: FETCH_CONCURRENCY
+        value: 8
+      - key: RENDER_CONCURRENCY
+        value: 1
+      - key: LINK_CHECK_CONCURRENCY
+        value: 6
+      - key: DEFAULT_DOMAIN_RATE_PER_SEC
+        value: 5
+      - key: DEFAULT_DOMAIN_CONCURRENCY
+        value: 4
+      # SSRF-guard bypass for test fixtures. MUST stay empty in production.
+      - key: CRAWLER_ALLOW_PRIVATE_TARGETS
+        value: ""
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        value: auto
+      - key: S3_BUCKET_UPLOADS
+        value: seo-guardian-uploads
+      - key: S3_BUCKET_HTML
+        value: seo-guardian-html
+      - key: S3_FORCE_PATH_STYLE
+        value: "true"

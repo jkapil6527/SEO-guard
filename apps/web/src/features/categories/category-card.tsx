@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/primitives/button';
+import { Dialog } from '@/components/primitives/dialog';
 import { StatusBadge } from '@/components/primitives/badge';
 import { HealthGauge, Sparkline } from '@/components/charts/charts';
-import { useCategoryTrend } from '@/features/categories/api';
+import { IconTrash } from '@/components/icons';
+import { useCategoryTrend, useDeleteCategory } from '@/features/categories/api';
 import { CrawlSitemapDialog } from '@/features/categories/crawl-sitemap-dialog';
 import { cn } from '@/utils/cn';
 import type { SitemapGroupSummary } from '@/lib/types';
@@ -35,7 +37,9 @@ export function CategoryCard({
   projectSlug: string;
 }) {
   const [crawlOpen, setCrawlOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const trend = useCategoryTrend(group.id);
+  const remove = useDeleteCategory(group.projectId);
   const crawling = !!group.lastCrawlStatus && ACTIVE.includes(group.lastCrawlStatus);
   const score = group.healthScore === null ? null : Number(group.healthScore);
   const base = `/projects/${projectSlug}/categories/${group.id}`;
@@ -136,6 +140,16 @@ export function CategoryCard({
         >
           View
         </Link>
+        <button
+          type="button"
+          onClick={() => setDeleteOpen(true)}
+          disabled={crawling}
+          aria-label={`Delete category ${group.name}`}
+          title={crawling ? 'Cancel the running crawl before deleting' : 'Delete category'}
+          className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted"
+        >
+          <IconTrash className="h-4 w-4" />
+        </button>
       </div>
 
       <CrawlSitemapDialog
@@ -144,6 +158,36 @@ export function CategoryCard({
         onOpenChange={setCrawlOpen}
         projectId={group.projectId}
       />
+
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        size="sm"
+        title={`Delete “${group.name}”?`}
+        description="This cannot be undone."
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              loading={remove.isPending}
+              onClick={() =>
+                remove.mutate(group.id, { onSuccess: () => setDeleteOpen(false) })
+              }
+            >
+              Delete category
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted">
+          The category and every crawl run under it — including their pages, issues and score
+          history — will be permanently deleted.
+        </p>
+      </Dialog>
     </div>
   );
 }

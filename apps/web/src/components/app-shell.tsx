@@ -11,7 +11,7 @@ import { UserMenu } from '@/components/user-menu';
 import { useProjectBySlug } from '@/features/projects/api';
 import { useCategories } from '@/features/categories/api';
 import { cn } from '@/utils/cn';
-import { IconChart, IconFolder, IconGrid, IconMenu, IconShield, IconX } from '@/components/icons';
+import { IconChart, IconFolder, IconMenu, IconShield, IconX } from '@/components/icons';
 import type { IconProps } from '@/components/icons';
 
 interface NavItem {

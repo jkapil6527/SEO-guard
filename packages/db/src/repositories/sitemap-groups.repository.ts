@@ -152,8 +152,61 @@ export class SitemapGroupsRepository {
     );
   }
 
+  /**
+   * True while a crawl of this category is still in flight. Deleting the group
+   * out from under a running crawl would leave workers writing pages, issues and
+   * progress for a crawl row that no longer exists.
+   */
+  async hasActiveCrawl(id: string): Promise<boolean> {
+    const row = await this.db.queryOne<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM crawls WHERE sitemap_group_id = $1 AND status = ANY($2)
+       ) AS exists`,
+      [id, ['queued', 'resolving', 'running', 'paused', 'finalizing']],
+    );
+    return row?.exists ?? false;
+  }
+
+  /**
+   * Delete a category together with the crawls that belong to it.
+   *
+   * crawls.sitemap_group_id is ON DELETE SET NULL, so dropping the group alone
+   * would silently convert its crawls into unlabelled site-wide ones that still
+   * surface in Reports. Nothing has a foreign key to crawls either, so their
+   * per-crawl rows have to be cleared explicitly or they are orphaned forever.
+   *
+   * `pages` is deliberately untouched: a page belongs to the website and can be
+   * shared with other categories. page_sitemap_groups (the membership) already
+   * cascades from sitemap_groups.
+   */
   async remove(id: string): Promise<void> {
-    await this.db.query(`DELETE FROM sitemap_groups WHERE id = $1`, [id]);
+    await this.db.transaction(async (client) => {
+      const crawls = await client.query<{ id: string }>(
+        `SELECT id FROM crawls WHERE sitemap_group_id = $1`,
+        [id],
+      );
+      const crawlIds = crawls.rows.map((c) => c.id);
+      if (crawlIds.length > 0) {
+        // Partitioned tables (page_issues, page_snapshots, schema_entities,
+        // crawl_changes) route through their parent.
+        for (const table of [
+          'crawl_aggregates',
+          'crawl_changes',
+          'duplicate_groups',
+          'link_checks',
+          'notifications_log',
+          'page_issues',
+          'page_snapshots',
+          'schema_entities',
+          'trend_daily',
+          'trend_daily_group',
+        ]) {
+          await client.query(`DELETE FROM ${table} WHERE crawl_id = ANY($1::uuid[])`, [crawlIds]);
+        }
+        await client.query(`DELETE FROM crawls WHERE id = ANY($1::uuid[])`, [crawlIds]);
+      }
+      await client.query(`DELETE FROM sitemap_groups WHERE id = $1`, [id]);
+    });
   }
 
   /** Record which pages belong to this group, with the sitemap's lastmod. */

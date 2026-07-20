@@ -154,6 +154,14 @@ export function IconX(props: IconProps) {
   );
 }
 
+export function IconTrash(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 7h16M10 11v6M14 11v6M5 7l1 13h12l1-13M9 7V4h6v3" />
+    </Svg>
+  );
+}
+
 export function IconPlus(props: IconProps) {
   return (
     <Svg {...props}>

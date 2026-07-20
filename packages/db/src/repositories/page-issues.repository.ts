@@ -147,6 +147,16 @@ export class PageIssuesRepository {
   }): Promise<number> {
     const { crawlId, websiteId, hashField, sampleField, checkId, severity, duplicateField } = input;
     return this.db.transaction(async (client) => {
+      // Re-driven finalizes would otherwise append a second copy of every group
+      // and issue for this field. See clearChecks().
+      await client.query(`DELETE FROM duplicate_groups WHERE crawl_id = $1 AND field = $2`, [
+        crawlId,
+        duplicateField,
+      ]);
+      await client.query(`DELETE FROM page_issues WHERE crawl_id = $1 AND check_id = $2`, [
+        crawlId,
+        checkId,
+      ]);
       await client.query(
         `INSERT INTO duplicate_groups (crawl_id, website_id, field, value_hash, sample, page_ids, page_count)
          SELECT $1, $2, $3, decode(md5(g.hash), 'hex'), g.sample, g.page_ids, g.cnt
@@ -191,8 +201,15 @@ export class PageIssuesRepository {
 
   /**
    * Broken-link issues: for every broken target in link_checks, attach one
-   * issue to each snapshot whose extracted links reference it (lateral join
-   * over the links artifact).
+   * issue to each snapshot whose extracted links reference it.
+   *
+   * Driven from page_snapshots, expanding each snapshot's links artifact exactly
+   * once and hash-joining the result to link_checks on the href. Driving it the
+   * other way — link_checks JOIN page_snapshots ON crawl_id, with a lateral
+   * membership test over the artifact — is a cartesian product that re-parses
+   * (and detoasts) every snapshot's artifacts once per broken link: 5k broken
+   * links x 2.4k snapshots = 12M jsonb expansions, which took finalize from
+   * sub-second to hours and left the crawl frozen in 'finalizing'.
    */
   async insertBrokenLinkIssues(input: {
     crawlId: string;
@@ -201,6 +218,7 @@ export class PageIssuesRepository {
     externalCheckId: string;
     externalSeverity: string;
   }): Promise<number> {
+    await this.clearChecks(input.crawlId, [input.internalCheckId, input.externalCheckId]);
     const res = await this.db.query<{ id: string }>(
       `INSERT INTO page_issues (crawl_id, snapshot_id, page_id, website_id, check_id, severity, fingerprint, evidence)
        SELECT s.crawl_id, s.id, s.page_id, s.website_id,
@@ -211,13 +229,17 @@ export class PageIssuesRepository {
                                  'anchorText', l.item ->> 'text',
                                  'selector', l.item ->> 'selector',
                                  'snippet', l.item ->> 'snippet')
-       FROM link_checks lc
-       JOIN page_snapshots s ON s.crawl_id = lc.crawl_id
+       FROM page_snapshots s
        CROSS JOIN LATERAL (
-         SELECT item FROM jsonb_array_elements(coalesce(s.artifacts -> 'links', '[]'::jsonb)) AS item
-         WHERE item ->> 'href' = lc.url LIMIT 1
+         SELECT DISTINCT ON (item ->> 'href') item
+         FROM jsonb_array_elements(coalesce(s.artifacts -> 'links', '[]'::jsonb))
+           WITH ORDINALITY AS a(item, ord)
+         WHERE item ->> 'href' IS NOT NULL
+         ORDER BY item ->> 'href', a.ord
        ) l
-       WHERE lc.crawl_id = $1 AND NOT lc.ok
+       JOIN link_checks lc
+         ON lc.crawl_id = s.crawl_id AND lc.url = l.item ->> 'href' AND NOT lc.ok
+       WHERE s.crawl_id = $1
        RETURNING id`,
       [
         input.crawlId,
@@ -240,6 +262,7 @@ export class PageIssuesRepository {
     checkId: string;
     severity: string;
   }): Promise<number> {
+    await this.clearChecks(input.crawlId, [input.checkId]);
     const res = await this.db.query<{ id: string }>(
       `INSERT INTO page_issues (crawl_id, snapshot_id, page_id, website_id, check_id, severity, fingerprint, evidence)
        SELECT s.crawl_id, s.id, s.page_id, s.website_id, $2, $3::issue_severity,
@@ -248,13 +271,17 @@ export class PageIssuesRepository {
                                  'alt', img.item ->> 'alt',
                                  'selector', img.item ->> 'selector',
                                  'snippet', img.item ->> 'snippet')
-       FROM link_checks lc
-       JOIN page_snapshots s ON s.crawl_id = lc.crawl_id
+       FROM page_snapshots s
        CROSS JOIN LATERAL (
-         SELECT item FROM jsonb_array_elements(coalesce(s.artifacts -> 'images', '[]'::jsonb)) AS item
-         WHERE item ->> 'src' = lc.url LIMIT 1
+         SELECT DISTINCT ON (item ->> 'src') item
+         FROM jsonb_array_elements(coalesce(s.artifacts -> 'images', '[]'::jsonb))
+           WITH ORDINALITY AS a(item, ord)
+         WHERE coalesce(item ->> 'src', '') <> ''
+         ORDER BY item ->> 'src', a.ord
        ) img
-       WHERE lc.crawl_id = $1 AND NOT lc.ok AND lc.url <> ''
+       JOIN link_checks lc
+         ON lc.crawl_id = s.crawl_id AND lc.url = img.item ->> 'src' AND NOT lc.ok
+       WHERE s.crawl_id = $1
        RETURNING id`,
       [input.crawlId, input.checkId, input.severity],
     );
@@ -271,6 +298,7 @@ export class PageIssuesRepository {
     severity: string;
     maxHops: number;
   }): Promise<number> {
+    await this.clearChecks(input.crawlId, [input.checkId]);
     const res = await this.db.query<{ id: string }>(
       `INSERT INTO page_issues (crawl_id, snapshot_id, page_id, website_id, check_id, severity, fingerprint, evidence)
        SELECT s.crawl_id, s.id, s.page_id, s.website_id, $2, $3::issue_severity,
@@ -279,17 +307,35 @@ export class PageIssuesRepository {
                                  'anchorText', l.item ->> 'text',
                                  'selector', l.item ->> 'selector',
                                  'snippet', l.item ->> 'snippet')
-       FROM link_checks lc
-       JOIN page_snapshots s ON s.crawl_id = lc.crawl_id
+       FROM page_snapshots s
        CROSS JOIN LATERAL (
-         SELECT item FROM jsonb_array_elements(coalesce(s.artifacts -> 'links', '[]'::jsonb)) AS item
-         WHERE item ->> 'href' = lc.url LIMIT 1
+         SELECT DISTINCT ON (item ->> 'href') item
+         FROM jsonb_array_elements(coalesce(s.artifacts -> 'links', '[]'::jsonb))
+           WITH ORDINALITY AS a(item, ord)
+         WHERE item ->> 'href' IS NOT NULL
+         ORDER BY item ->> 'href', a.ord
        ) l
-       WHERE lc.crawl_id = $1 AND lc.redirect_hops > $4
+       JOIN link_checks lc
+         ON lc.crawl_id = s.crawl_id AND lc.url = l.item ->> 'href'
+        AND lc.redirect_hops > $4
+       WHERE s.crawl_id = $1
        RETURNING id`,
       [input.crawlId, input.checkId, input.severity, input.maxHops],
     );
     return res.length;
+  }
+
+  /**
+   * Drop issues a finalize pass owns before re-inserting them. Finalize is
+   * re-driven by the watchdog whenever it stalls, and without this the derived
+   * issues are appended again on every attempt — one interrupted run had already
+   * doubled links.internal.broken to 16k rows over 8k distinct fingerprints.
+   */
+  private async clearChecks(crawlId: string, checkIds: string[]): Promise<void> {
+    await this.db.query(`DELETE FROM page_issues WHERE crawl_id = $1 AND check_id = ANY($2)`, [
+      crawlId,
+      checkIds,
+    ]);
   }
 
   /**

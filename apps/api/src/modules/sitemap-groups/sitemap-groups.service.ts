@@ -103,8 +103,15 @@ export class SitemapGroupsService {
     return updated;
   }
 
+  /** Delete a category and everything crawled under it. Not reversible. */
   async remove(groupId: string): Promise<void> {
     await this.get(groupId);
+    if (await this.groups.hasActiveCrawl(groupId)) {
+      throw new BadRequestException({
+        code: ERROR_CODES.VALIDATION_FAILED,
+        message: 'This category is being crawled. Cancel the crawl before deleting it.',
+      });
+    }
     await this.groups.remove(groupId);
   }
 
